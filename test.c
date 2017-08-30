@@ -112,14 +112,14 @@ static void test_all(void) {
     if (ret < 0) { perror("setjmp"); return; }
     else if (ret != 0) { printf("out of memory!\n"); return; }
 
-    solver = am_newsolver(null_allocf, NULL);
+    solver = am_newsolver(null_allocf, NULL, NULL);
     assert(solver == NULL);
 
-    solver = am_newsolver(NULL, NULL);
+    solver = am_newsolver(NULL, NULL, NULL);
     assert(solver != NULL);
     am_delsolver(solver);
 
-    solver = am_newsolver(debug_allocf, NULL);
+    solver = am_newsolver(debug_allocf, NULL, NULL);
     xl = am_newvariable(solver);
     xm = am_newvariable(solver);
     xr = am_newvariable(solver);
@@ -322,7 +322,7 @@ static void test_binarytree(void) {
      * 3   4 5   6
      */
 
-    pSolver = am_newsolver(debug_allocf, NULL);
+    pSolver = am_newsolver(debug_allocf, NULL, NULL);
 
     /* Xroot=500, Yroot=10 */
     arrX[0] = am_newvariable(pSolver);
@@ -412,7 +412,7 @@ static void test_unbounded(void) {
     if (ret < 0) { perror("setjmp"); return; }
     else if (ret != 0) { printf("out of memory!\n"); return; }
 
-    solver = am_newsolver(debug_allocf, NULL);
+    solver = am_newsolver(debug_allocf, NULL, NULL);
     x = am_newvariable(solver);
     y = am_newvariable(solver);
 
@@ -538,7 +538,7 @@ static void test_strength(void) {
     if (ret < 0) { perror("setjmp"); return; }
     else if (ret != 0) { printf("out of memory!\n"); return; }
 
-    solver = am_newsolver(debug_allocf, NULL);
+    solver = am_newsolver(debug_allocf, NULL, NULL);
     am_autoupdate(solver, 1);
     x = am_newvariable(solver);
     y = am_newvariable(solver);
@@ -594,7 +594,7 @@ static void test_suggest(void) {
     if (ret < 0) { perror("setjmp"); return; }
     else if (ret != 0) { printf("out of memory!\n"); return; }
 
-    solver = am_newsolver(debug_allocf, NULL);
+    solver = am_newsolver(debug_allocf, NULL, NULL);
     splitter_l = am_newvariable(solver);
     splitter_w = am_newvariable(solver);
     splitter_r = am_newvariable(solver);
@@ -670,7 +670,7 @@ static void test_suggest(void) {
 }
 
 void test_cycling() {
-    am_Solver * solver = am_newsolver(NULL, NULL);
+    am_Solver * solver = am_newsolver(NULL, NULL, NULL);
 
     am_Variable * va = am_newvariable(solver);
     am_Variable * vb = am_newvariable(solver);
@@ -730,12 +730,38 @@ void test_cycling() {
     }
 }
 
+static am_Float stored_val = 0.0;
+
+void example_callback(am_Solver *solver, am_Variable *variable, am_Float new_value, am_Float old_value) {
+    printf("value: %f -> %f\n", old_value, new_value);
+    stored_val = new_value;
+}
+
+void test_callback() {
+    am_Solver *solver = am_newsolver(NULL, NULL, example_callback);
+
+    am_Variable *va = am_newvariable(solver);
+    {
+        am_Constraint * c = am_newconstraint(solver, AM_REQUIRED);
+        int ret = 0;
+        ret |= am_addterm(c, va, 1.0);
+        ret |= am_setrelation(c, AM_EQUAL);
+        ret |= am_addconstant(c, 4.0);
+        ret |= am_add(c);
+        assert(ret == AM_OK);
+        assert(stored_val == 0.0);
+        am_updatevars(solver);
+        assert(stored_val == 4.0);
+    }
+}
+
 int main(void) {
     test_binarytree();
     test_unbounded();
     test_strength();
     test_suggest();
     test_cycling();
+    test_callback();
     test_all();
     return 0;
 }

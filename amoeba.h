@@ -68,8 +68,9 @@ typedef struct am_Variable   am_Variable;
 typedef struct am_Constraint am_Constraint;
 
 typedef void *am_Allocf (void *ud, void *ptr, size_t nsize, size_t osize);
+typedef void am_VarCallback (am_Solver *solver, am_Variable *var, am_Float old_value, am_Float new_value);
 
-AM_API am_Solver *am_newsolver   (am_Allocf *allocf, void *ud);
+AM_API am_Solver *am_newsolver   (am_Allocf *allocf, void *ud, am_VarCallback *callback);
 AM_API void       am_resetsolver (am_Solver *solver, int clear_constraints);
 AM_API void       am_delsolver   (am_Solver *solver);
 
@@ -224,6 +225,7 @@ struct am_Solver {
     unsigned   auto_update;
     am_Symbol  infeasible_rows;
     am_Symbol  dirty_vars;
+    am_VarCallback *var_callback;
 };
 
 
@@ -876,7 +878,7 @@ static void *am_default_allocf(void *ud, void *ptr, size_t nsize, size_t osize) 
     return newptr;
 }
 
-AM_API am_Solver *am_newsolver(am_Allocf *allocf, void *ud) {
+AM_API am_Solver *am_newsolver(am_Allocf *allocf, void *ud, am_VarCallback *var_callback) {
     am_Solver *solver;
     if (allocf == NULL) allocf = am_default_allocf;
     if ((solver = (am_Solver*)allocf(ud, NULL, sizeof(am_Solver), 0)) == NULL)
@@ -884,6 +886,7 @@ AM_API am_Solver *am_newsolver(am_Allocf *allocf, void *ud) {
     memset(solver, 0, sizeof(*solver));
     solver->allocf = allocf;
     solver->ud     = ud;
+    solver->var_callback = var_callback;
     am_initrow(&solver->objective);
     am_inittable(&solver->vars, sizeof(am_VarEntry));
     am_inittable(&solver->constraints, sizeof(am_ConsEntry));
@@ -939,7 +942,12 @@ AM_API void am_updatevars(am_Solver *solver) {
         am_Row *row = (am_Row*)am_gettable(&solver->rows, var->sym);
         solver->dirty_vars = var->dirty_next;
         var->dirty_next = am_null();
-        var->value = row ? row->constant : 0.0f;
+        am_Float old_value = var->value;
+        am_Float new_value = row ? row->constant : 0.0f;
+        var->value = new_value;
+        if (solver->var_callback != NULL) {
+          solver->var_callback(solver, var, new_value, old_value);
+        }
     }
 }
 

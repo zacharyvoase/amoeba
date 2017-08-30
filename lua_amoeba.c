@@ -536,7 +536,7 @@ static void open_constraint(lua_State *L) {
 
 static int Lnew(lua_State *L) {
     aml_Solver *S = lua_newuserdata(L, sizeof(aml_Solver));
-    if ((S->solver = am_newsolver(NULL, NULL)) == NULL)
+    if ((S->solver = am_newsolver(NULL, NULL, NULL)) == NULL)
         return 0;
     lua_createtable(L, 0, 4); aml_setweak(L, "v");
     S->ref_vars = luaL_ref(L, LUA_REGISTRYINDEX);
